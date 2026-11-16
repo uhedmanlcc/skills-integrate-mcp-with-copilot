@@ -3,6 +3,33 @@ document.addEventListener("DOMContentLoaded", () => {
   const activitySelect = document.getElementById("activity");
   const signupForm = document.getElementById("signup-form");
   const messageDiv = document.getElementById("message");
+  const loginButton = document.getElementById("login-button");
+  const logoutButton = document.getElementById("logout-button");
+  const loginStatus = document.getElementById("login-status");
+  const loginDialog = document.getElementById("login-dialog");
+  const loginForm = document.getElementById("login-form");
+  const cancelLoginButton = document.getElementById("cancel-login");
+  const loginError = document.getElementById("login-error");
+  let teacherCredentials = null;
+
+  function getAuthHeaders() {
+    return teacherCredentials
+      ? { Authorization: `Basic ${teacherCredentials}` }
+      : {};
+  }
+
+  function setLoggedIn(username) {
+    loginButton.classList.add("hidden");
+    logoutButton.classList.remove("hidden");
+    loginStatus.textContent = `Logged in as ${username}.`;
+  }
+
+  function setLoggedOut() {
+    teacherCredentials = null;
+    loginButton.classList.remove("hidden");
+    logoutButton.classList.add("hidden");
+    loginStatus.textContent = "Students can view activities.";
+  }
 
   // Function to fetch activities from API
   async function fetchActivities() {
@@ -80,6 +107,7 @@ document.addEventListener("DOMContentLoaded", () => {
         )}/unregister?email=${encodeURIComponent(email)}`,
         {
           method: "DELETE",
+          headers: getAuthHeaders(),
         }
       );
 
@@ -124,6 +152,7 @@ document.addEventListener("DOMContentLoaded", () => {
         )}/signup?email=${encodeURIComponent(email)}`,
         {
           method: "POST",
+          headers: getAuthHeaders(),
         }
       );
 
@@ -152,6 +181,47 @@ document.addEventListener("DOMContentLoaded", () => {
       messageDiv.className = "error";
       messageDiv.classList.remove("hidden");
       console.error("Error signing up:", error);
+    }
+  });
+
+  loginButton.addEventListener("click", () => {
+    loginError.classList.add("hidden");
+    loginForm.reset();
+    loginDialog.showModal();
+  });
+
+  cancelLoginButton.addEventListener("click", () => {
+    loginDialog.close();
+  });
+
+  logoutButton.addEventListener("click", () => {
+    setLoggedOut();
+    messageDiv.textContent = "Logged out.";
+    messageDiv.className = "info";
+    messageDiv.classList.remove("hidden");
+  });
+
+  loginForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const username = document.getElementById("username").value;
+    const password = document.getElementById("password").value;
+    const encodedCredentials = btoa(`${username}:${password}`);
+
+    try {
+      const response = await fetch("/auth/teacher", {
+        headers: { Authorization: `Basic ${encodedCredentials}` },
+      });
+
+      if (!response.ok) {
+        throw new Error("Invalid teacher credentials");
+      }
+
+      teacherCredentials = encodedCredentials;
+      setLoggedIn(username);
+      loginDialog.close();
+    } catch (error) {
+      loginError.textContent = error.message;
+      loginError.classList.remove("hidden");
     }
   });
 
